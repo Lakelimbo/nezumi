@@ -13,10 +13,37 @@ Under `libopenmpt/`, you can find a copy of `libopenmpt.h` (for development purp
 ## Usage
 
 ```sh
-./nezumi "path-to-my-module.mod"
+nezumi "path-to-module"
 ```
 
 It supports the common tracker module formats, such as MOD (Amiga), IT (Impulse Tracker), XM (ProTracker), S3M (SchismTracker 3), among many others.
+
+Check `nezumi -help` for more commands.
+
+## Development
+
+Requirements:
+
+- Go 1.26+
+- GCC or Clang (for CGO bindings)
+- `libopenmpt`
+
+Recommended, but not mandatory:
+
+- just
+- valgrind
+
+There's also find a `flake.nix` for a contained development environment with the needed tools.
+
+### Building
+
+```sh
+just build
+# or if not using just:
+go build ./cmd/nezumi
+```
+
+Remember to **not** disable CGO bindings when building because `libopenmpt` is not statically linked (at least yet)!
 
 ## To-do?
 
@@ -24,6 +51,6 @@ It supports the common tracker module formats, such as MOD (Amiga), IT (Impulse 
 - [ ] show more relevant metadata (message, samples, etc.)
 - [ ] make the visualization modes
 - [ ] maybe an edit mode? Would be good, but probably the hardest one
-- [ ] move main.go to `cmd/nezumi` so it can support more commands
-  - maybe also bring cobra or uv for handling CLI
+- [x] ~~move main.go to `cmd/nezumi` so it can support more commands~~
+  - ~~maybe also bring cobra or uv for handling CLI~~
 - [ ] check whether statically linking `libopenmpt` is viable, so it could be a self-contained (albeit larger) binary. Could be useful for people on other OSes
