@@ -34,12 +34,16 @@ func executeCommand(m Model, raw string) (tea.Model, tea.Cmd) {
 		m.Tabs[TabVisualization].Visualizer = view
 		m.refreshViewport(TabVisualization)
 
-	case "play":
-		m.play()
-		return m, nil
+	case "play", "resume":
+		cmd := m.play()
+		return m, cmd
 
 	case "pause":
 		m.pause()
+		return m, nil
+
+	case "stop":
+		m.stop()
 		return m, nil
 
 	case "playpause":
@@ -117,21 +121,41 @@ func toggleFollow(m *Model) tea.Cmd {
 func togglePlayback(m *Model) tea.Cmd {
 	if m.Playing {
 		m.pause()
-	} else {
-		m.play()
+		return nil
 	}
+
+	return m.play()
+}
+
+func stopPlayback(m *Model) tea.Cmd {
+	m.stop()
 
 	return nil
 }
 
-func (m *Model) play() {
-	m.Player.Resume()
+func (m *Model) play() tea.Cmd {
+	if err := m.Player.Resume(); err != nil {
+		m.Status = err.Error()
+		return nil
+	}
+
 	m.Playing = true
 	m.refreshViewport(TabInfo)
+
+	return rearmPlayback(m.Audio, m.Player)
 }
 
 func (m *Model) pause() {
 	m.Player.Pause()
+	m.Playing = false
+	m.refreshViewport(TabInfo)
+}
+
+func (m *Model) stop() {
+	if err := m.Player.Rewind(); err != nil {
+		m.Status = err.Error()
+	}
+
 	m.Playing = false
 	m.refreshViewport(TabInfo)
 }

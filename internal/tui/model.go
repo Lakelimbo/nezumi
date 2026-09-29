@@ -153,8 +153,7 @@ func New(mod *libopenmpt.Module, player *libopenmpt.Player, audio <-chan libopen
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		pollPosition(m.Module),
-		waitForAudio(m.Audio, m.Player.Done()),
-		waitForPlaybackDone(m.Player.Done()),
+		rearmPlayback(m.Audio, m.Player),
 	)
 }
 
@@ -205,9 +204,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, waitForAudio(m.Audio, m.Player.Done())
 
 	case audioStoppedMsg:
+		if m.Playing {
+			return m, waitForAudio(m.Audio, m.Player.Done())
+		}
+
 		return m, nil
 
 	case playbackDoneMsg:
+		if m.Playing {
+			return m, nil
+		}
+
 		m.Playing = false
 		m.refreshViewport(TabInfo)
 

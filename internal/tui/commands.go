@@ -57,3 +57,10 @@ func leaderTimeout(token uint64) tea.Cmd {
 		},
 	)
 }
+
+func rearmPlayback(audio <-chan libopenmpt.PCMFrame, player *libopenmpt.Player) tea.Cmd {
+	return tea.Batch(
+		waitForAudio(audio, player.Done()),
+		waitForPlaybackDone(player.Done()),
+	)
+}

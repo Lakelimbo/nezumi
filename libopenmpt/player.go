@@ -26,12 +26,24 @@ type Player struct {
 
 	ctx    *oto.Context
 	player *oto.Player
-	reader *moduleReader
+	reader *ModuleReader
 
-	done      chan struct{}
-	doneOnce  sync.Once
 	startOnce sync.Once
 	stopOnce  sync.Once
+
+	mu      sync.Mutex
+	current *run
+}
+
+type run struct {
+	done chan struct{}
+	once sync.Once
+}
+
+func (r *run) end() {
+	r.once.Do(func() {
+		close(r.done)
+	})
 }
 
 // NewPlayer creates a ready-to-use Player for mod at sampleRate and starts no
@@ -61,10 +73,10 @@ func NewPlayer(mod *Module, sampleRate int, chunkFrames int) (*Player, error) {
 		return nil, fmt.Errorf("libopenmpt: init audio context: %w", err)
 	}
 
-	reader := &moduleReader{
-		module:     mod,
-		sampleRate: sampleRate,
-		chunk:      make([]float32, chunkFrames*2),
+	reader := &ModuleReader{
+		Module:     mod,
+		SampleRate: sampleRate,
+		Chunk:      make([]float32, chunkFrames*2),
 	}
 
 	p := &Player{
@@ -72,7 +84,6 @@ func NewPlayer(mod *Module, sampleRate int, chunkFrames int) (*Player, error) {
 		sampleRate: sampleRate,
 		ctx:        ctx,
 		reader:     reader,
-		done:       make(chan struct{}),
 	}
 	p.player = ctx.NewPlayer(reader)
 
@@ -81,10 +92,13 @@ func NewPlayer(mod *Module, sampleRate int, chunkFrames int) (*Player, error) {
 
 // Play starts playback and returns immediately.
 func (p *Player) Play() {
+	p.currentRun()
+
 	p.startOnce.Do(func() {
-		p.player.Play()
 		go p.watchDone()
 	})
+
+	p.player.Play()
 }
 
 // Pause pauses playback, keeping the position and buffered audio.
@@ -93,8 +107,24 @@ func (p *Player) Pause() {
 }
 
 // Resume continues playback after Pause.
-func (p *Player) Resume() {
+func (p *Player) Resume() error {
+	if p.reader.Ended.Load() {
+		return p.Rewind()
+	}
+
 	p.player.Play()
+	return nil
+}
+
+func (p *Player) Rewind() error {
+	p.player.Pause()
+
+	if _, err := p.player.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("libopenmpt: rewind %w", err)
+	}
+
+	p.endRun()
+	return nil
 }
 
 // Volume returns the current volume (1 is the default).
@@ -115,7 +145,7 @@ func (p *Player) Frames() int64 {
 // Done is closed when playback ends, either because the module finished or
 // because Stop was called.
 func (p *Player) Done() <-chan struct{} {
-	return p.done
+	return p.currentRun().done
 }
 
 // Stop halts playback immediately and releases the audio resources. It is
@@ -126,8 +156,30 @@ func (p *Player) Stop() {
 		// Stop pulling from the module and keep whatever is buffered from
 		// reaching the speaker.
 		p.player.PauseAndStopReading()
-		p.closeDone()
+		p.endRun()
 	})
+}
+
+func (p *Player) currentRun() *run {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.current == nil {
+		p.current = &run{
+			done: make(chan struct{}),
+		}
+	}
+
+	return p.current
+}
+
+func (p *Player) endRun() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.current != nil {
+		p.current.end()
+	}
 }
 
 // Err returns the first error that occurred in the audio driver or while
@@ -139,10 +191,6 @@ func (p *Player) Err() error {
 	return p.ctx.Err()
 }
 
-func (p *Player) closeDone() {
-	p.doneOnce.Do(func() { close(p.done) })
-}
-
 // watchDone closes Done when the module reaches the end and the audio buffer
 // has played out.
 func (p *Player) watchDone() {
@@ -150,13 +198,12 @@ func (p *Player) watchDone() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		if p.reader.stopped.Load() {
-			p.closeDone()
+		if p.reader.Stopped.Load() {
+			p.endRun()
 			return
 		}
-		if p.reader.ended.Load() && !p.player.IsPlaying() {
-			p.closeDone()
-			return
+		if p.reader.Ended.Load() && !p.player.IsPlaying() {
+			p.endRun()
 		}
 	}
 }
@@ -172,51 +219,51 @@ func (p *Player) SetPCMHandler(handler PCMHandler) {
 	p.reader.pcmHandler = handler
 }
 
-// moduleReader is an io.Reader that renders libopenmpt audio on demand. It is
+// ModuleReader is an io.Reader that renders libopenmpt audio on demand. It is
 // consumed by oto's internal player loop (a single goroutine), so the fields
 // accessed there need only be guarded against Stop, which happens through
 // atomics.
-type moduleReader struct {
-	module     *Module
-	sampleRate int
+type ModuleReader struct {
+	Module     *Module
+	SampleRate int
 
-	chunk     []float32
+	Chunk     []float32
 	chunkData []byte
 	chunkPos  int
 	chunkLen  int
 
 	frames  atomic.Int64
-	stopped atomic.Bool
-	ended   atomic.Bool
+	Stopped atomic.Bool
+	Ended   atomic.Bool
 
 	pcmHandler PCMHandler
 }
 
 // Read fills p with interleaved float32 stereo audio rendered from the
 // module. It returns io.EOF once the module has finished.
-func (r *moduleReader) Read(p []byte) (int, error) {
-	if r.stopped.Load() {
+func (r *ModuleReader) Read(p []byte) (int, error) {
+	if r.Stopped.Load() {
 		return 0, io.EOF
 	}
 
 	if r.chunkPos >= r.chunkLen {
-		n, err := r.module.Render(r.sampleRate, r.chunk)
+		n, err := r.Module.Render(r.SampleRate, r.Chunk)
 		if err != nil {
 			return 0, err
 		}
 		if n == 0 {
-			r.ended.Store(true)
+			r.Ended.Store(true)
 			return 0, io.EOF
 		}
 		r.frames.Add(int64(n))
-		r.chunkData = float32Bytes(r.chunk[:n*2])
+		r.chunkData = float32Bytes(r.Chunk[:n*2])
 		r.chunkLen = len(r.chunkData)
 		r.chunkPos = 0
 
 		if r.pcmHandler != nil {
 			frame := PCMFrame{
-				SampleRate: r.sampleRate,
-				Samples:    append([]float32(nil), r.chunk[:n*2]...),
+				SampleRate: r.SampleRate,
+				Samples:    append([]float32(nil), r.Chunk[:n*2]...),
 			}
 
 			r.pcmHandler(frame)
@@ -228,8 +275,29 @@ func (r *moduleReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func (r *moduleReader) stop() {
-	r.stopped.Store(true)
+// Seek returns a module to the very beginning. Since it's not a
+// []byte, the start is the only position it has.
+func (r *ModuleReader) Seek(offset int64, whence int) (int64, error) {
+	if offset != 0 || (whence != io.SeekStart && whence != io.SeekCurrent) {
+		return 0, fmt.Errorf("libopenmpt: module position %d - only the start is seekable", offset)
+	}
+
+	if r.Stopped.Load() {
+		return 0, fmt.Errorf("libopenmpt: module is stopped")
+	}
+
+	if err := r.Module.SeekOrderRow(0, 0); err != nil {
+		return 0, err
+	}
+
+	r.chunkPos, r.chunkLen = 0, 0
+	r.Ended.Store(false)
+
+	return 0, nil
+}
+
+func (r *ModuleReader) stop() {
+	r.Stopped.Store(true)
 }
 
 // float32Bytes reinterprets a float32 slice as bytes without copying. The

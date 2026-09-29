@@ -18,6 +18,7 @@ var leaderCommands = map[string]func(*Model) tea.Cmd{
 	"T": prevTab,
 	"f": toggleFollow,
 	" ": togglePlayback,
+	"s": stopPlayback,
 	"q": func(*Model) tea.Cmd { return tea.Quit },
 }
 

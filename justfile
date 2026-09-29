@@ -1,5 +1,11 @@
+dev module:
+  go run ./cmd/nezumi {{ module }}
+
 build:
   go build -o build/ ./cmd/nezumi
+
+test:
+  go test ./...
 
 valgrind:
   go build -tags valgrind -o build/nezumi-memcheck ./cmd/nezumi
