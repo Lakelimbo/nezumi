@@ -6,9 +6,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
-
 	"github.com/Lakelimbo/nezumi/internal/tui"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func GridLines(m tui.Model) (header string, rows []string) {

@@ -1,6 +1,7 @@
 package libopenmpt_test
 
 import (
+	"errors"
 	"io"
 	"testing"
 
@@ -110,12 +111,13 @@ func readChunks(t *testing.T, reader *libopenmpt.ModuleReader, n int) {
 	buf := make([]byte, 64*1024)
 	for range n {
 		read, err := reader.Read(buf)
-		if read == 0 || (err != nil && err != io.EOF) {
+		if read == 0 || (err != nil && !errors.Is(err, io.EOF)) {
 			t.Fatalf("Read: (%d, %v)", read, err)
 		}
 	}
 
-	if order, row := reader.Module.CurrentOrder(), reader.Module.CurrentRow(); order == 0 && row == 0 {
+	if order, row := reader.Module.CurrentOrder(), reader.Module.CurrentRow(); order == 0 &&
+		row == 0 {
 		t.Fatal("reading did not advance the module, so the seek provides nothing")
 	}
 }

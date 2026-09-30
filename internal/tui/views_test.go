@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-
 	"github.com/Lakelimbo/nezumi/internal/tui"
 	"github.com/Lakelimbo/nezumi/internal/utils"
 )

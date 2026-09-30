@@ -131,6 +131,7 @@ static uint8_t modterm_patterncommand_impl(modterm_module *wrapper,
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -218,7 +219,7 @@ func (m *Module) Render(sampleRate int, output []float32) (int, error) {
 	defer m.mu.Unlock()
 
 	if len(output)%2 != 0 {
-		return 0, fmt.Errorf("output buffer must contain an even number of samples")
+		return 0, errors.New("output buffer must contain an even number of samples")
 	}
 
 	frames := len(output) / 2
@@ -378,7 +379,7 @@ func (m *Module) patternCommand(pattern, row, channel, command int) uint8 {
 
 func (m *Module) ReadPattern(index int) (PatternData, error) {
 	if m == nil {
-		return PatternData{}, fmt.Errorf("nil module")
+		return PatternData{}, errors.New("nil module")
 	}
 
 	if index < 0 {
@@ -389,7 +390,7 @@ func (m *Module) ReadPattern(index int) (PatternData, error) {
 	defer m.mu.Unlock()
 
 	if m.ptr == nil {
-		return PatternData{}, fmt.Errorf("module is closed")
+		return PatternData{}, errors.New("module is closed")
 	}
 
 	patternCount := int(C.modterm_numpatterns_impl(m.ptr))
@@ -410,10 +411,10 @@ func (m *Module) ReadPattern(index int) (PatternData, error) {
 		Cells: make([][]Cell, rows),
 	}
 
-	for row := 0; row < rows; row++ {
+	for row := range rows {
 		data.Cells[row] = make([]Cell, channels)
 
-		for channel := 0; channel < channels; channel++ {
+		for channel := range channels {
 			data.Cells[row][channel] = Cell{
 				Note: uint8(C.modterm_patterncommand_impl(
 					m.ptr,

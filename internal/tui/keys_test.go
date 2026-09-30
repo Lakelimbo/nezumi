@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-
 	"github.com/Lakelimbo/nezumi/internal/tui"
 	"github.com/Lakelimbo/nezumi/internal/utils"
 )

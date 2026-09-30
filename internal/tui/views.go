@@ -41,6 +41,7 @@ func (m Model) bodyView() string {
 }
 
 func (m *Model) refreshViewport(tab tabID) {
+	//nolint:exhaustive
 	switch tab {
 	case TabPattern:
 		m.Tabs[tab].Pattern.Clamp(m.Info.Channels)
@@ -54,7 +55,7 @@ func (m *Model) refreshViewport(tab tabID) {
 }
 
 func (m *Model) refreshAllViewports() {
-	for tab := TabPattern; tab < TabCount; tab++ {
+	for tab := range TabCount {
 		m.refreshViewport(tab)
 	}
 }

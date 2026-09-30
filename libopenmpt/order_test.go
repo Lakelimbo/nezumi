@@ -10,7 +10,11 @@ func TestOrderPatternPlaybackPosition(t *testing.T) {
 	mod := openDemo(t, utils.DemoRealization)
 
 	if got := mod.OrderPattern(0); got != mod.CurrentPattern() {
-		t.Errorf("OrderPattern(0) is %d, want %d: the module opens on order 0", got, mod.CurrentPattern())
+		t.Errorf(
+			"OrderPattern(0) is %d, want %d: the module opens on order 0",
+			got,
+			mod.CurrentPattern(),
+		)
 	}
 
 	const (

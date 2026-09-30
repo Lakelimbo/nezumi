@@ -9,10 +9,9 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
-
 	"github.com/Lakelimbo/nezumi/internal/tui"
 	"github.com/Lakelimbo/nezumi/internal/utils"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // TestRealModulesFillTheBody tests the shapes e2e
@@ -144,8 +143,13 @@ func TestRealModuleGroupSeparatorsHoldColumn(t *testing.T) {
 					}
 
 					if ch := abs / tui.ChannelColumnWidth; ch%tui.ChannelGroupSize != 0 {
-						t.Errorf("offset %d: separator at column %d is in channel %d, want a multiple of %d",
-							offset, abs, ch+1, tui.ChannelGroupSize)
+						t.Errorf(
+							"offset %d: separator at column %d is in channel %d, want a multiple of %d",
+							offset,
+							abs,
+							ch+1,
+							tui.ChannelGroupSize,
+						)
 					}
 				}
 			}
@@ -317,11 +321,11 @@ func TestRealModuleHeaderIsAFaithfulCut(t *testing.T) {
 
 			// the full label line, laid out once and cut at every offset
 			var full strings.Builder
-			full.WriteString(fmt.Sprintf("%-*s", tui.RowNumberWidth, "#"))
+			fmt.Fprintf(&full, "%-*s", tui.RowNumberWidth, "#")
 
 			for c := range ch {
-				full.WriteString(fmt.Sprintf("%-*s", tui.ChannelColumnWidth,
-					" Ch "+strconv.Itoa(c+1)))
+				fmt.Fprintf(&full, "%-*s", tui.ChannelColumnWidth,
+					" Ch "+strconv.Itoa(c+1))
 			}
 
 			plain := full.String()

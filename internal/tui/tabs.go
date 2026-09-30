@@ -32,7 +32,7 @@ func (m Model) tabBar() string {
 
 	var bar strings.Builder
 
-	for tab := TabPattern; tab < TabCount; tab++ {
+	for tab := range TabCount {
 		label := string(tabIcons[tab]) + "  " + tabLabels[tab]
 
 		if tab == m.ActiveTab {

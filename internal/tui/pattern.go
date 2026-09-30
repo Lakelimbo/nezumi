@@ -68,7 +68,7 @@ func ParseCell(c libopenmpt.Cell) CellFields {
 	//
 	// Also, decided to format (at least for now) as a hex digit rather than
 	// letters from G and above because they are dependent on the format and
-	// I need to learn how, say, OpenMPT does it specificaly
+	// I need to learn how, say, OpenMPT does it specifically
 	if c.Effect != 0 {
 		eff = fmt.Sprintf("%X%02X", c.Effect-1, c.Parameter)
 	}

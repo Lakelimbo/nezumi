@@ -128,12 +128,12 @@ func ParseSeek(args []string) (order, row int, ok bool) {
 }
 
 func nextTab(m *Model) tea.Cmd {
-	m.setTab(tabID((int(m.ActiveTab) + 1) % int(TabCount)))
+	m.setTab(tabID((uint8(m.ActiveTab) + 1) % uint8(TabCount)))
 	return nil
 }
 
 func prevTab(m *Model) tea.Cmd {
-	m.setTab(tabID((int(m.ActiveTab) + int(TabCount) - 1) % int(TabCount)))
+	m.setTab(tabID((uint8(m.ActiveTab) + uint8(TabCount) - 1) % uint8(TabCount)))
 	return nil
 }
 

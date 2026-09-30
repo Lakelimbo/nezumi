@@ -119,7 +119,11 @@ func NewTabs() [TabCount]TabState {
 	return tabs
 }
 
-func New(mod *libopenmpt.Module, player *libopenmpt.Player, audio <-chan libopenmpt.PCMFrame) Model {
+func New(
+	mod *libopenmpt.Module,
+	player *libopenmpt.Player,
+	audio <-chan libopenmpt.PCMFrame,
+) Model {
 	theme := DefaultTheme()
 
 	command := textinput.New()

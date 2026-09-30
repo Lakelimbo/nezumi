@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"image/color"
 
 	"charm.land/lipgloss/v2"
@@ -52,8 +51,4 @@ func seg(plain string, fg, bg color.Color) string {
 		Foreground(fg).
 		Background(bg).
 		Render(plain)
-}
-
-func pad(plain string, width int, fg, bg color.Color) string {
-	return seg(fmt.Sprintf("%-*s", width, plain), fg, bg)
 }

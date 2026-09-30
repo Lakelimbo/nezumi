@@ -1,6 +1,7 @@
 package libopenmpt
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -58,7 +59,7 @@ func (r *run) end() {
 // rendered per read; use DefaultChunkFrames if you are unsure.
 func NewPlayer(mod *Module, sampleRate int, chunkFrames int) (*Player, error) {
 	if mod == nil {
-		return nil, fmt.Errorf("libopenmpt: nil module")
+		return nil, errors.New("libopenmpt: nil module")
 	}
 	if chunkFrames <= 0 {
 		chunkFrames = DefaultChunkFrames
@@ -302,7 +303,7 @@ func (r *ModuleReader) Seek(offset int64, whence int) (int64, error) {
 	}
 
 	if r.Stopped.Load() {
-		return 0, fmt.Errorf("libopenmpt: module is stopped")
+		return 0, errors.New("libopenmpt: module is stopped")
 	}
 
 	order, row := int(offset/orderStride), int(offset%orderStride)
@@ -326,5 +327,7 @@ func float32Bytes(s []float32) []byte {
 	if len(s) == 0 {
 		return nil
 	}
+
+	//#nosec G103
 	return unsafe.Slice((*byte)(unsafe.Pointer(&s[0])), len(s)*4)
 }

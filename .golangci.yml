@@ -1,0 +1,29 @@
+version: "2"
+linters:
+  enable:
+    - asciicheck
+    - copyloopvar
+    - decorder
+    - dupl
+    - dupword
+    - errorlint
+    - exhaustive
+    - goconst
+    - gomodguard_v2
+    - gosec
+    - govet
+    - ineffassign
+    - intrange
+    - lll
+    - misspell
+    - modernize
+    - perfsprint
+    - prealloc
+    - tagalign
+    - whitespace
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+    - golines

@@ -17,7 +17,7 @@ func TestDefaultThemeIsFullyPopulated(t *testing.T) {
 	for i := range typ.NumField() {
 		field := typ.Field(i)
 
-		c, ok := value.Field(i).Interface().(color.Color)
+		c, ok := reflect.TypeAssert[color.Color](value.Field(i))
 		if !ok {
 			t.Fatalf("Theme.%s is %s, want a color.Color", field.Name, field.Type)
 		}

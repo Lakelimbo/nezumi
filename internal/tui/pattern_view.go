@@ -219,7 +219,7 @@ func (m Model) channelHeader(v PatternView) string {
 
 	var grid strings.Builder
 	for ch := range channels {
-		grid.WriteString(fmt.Sprintf("%-*s", ChannelColumnWidth, " Ch "+strconv.Itoa(ch+1)))
+		fmt.Fprintf(&grid, "%-*s", ChannelColumnWidth, " Ch "+strconv.Itoa(ch+1))
 	}
 
 	plain := fmt.Sprintf("%-*s", RowNumberWidth, "#") +
