@@ -11,8 +11,15 @@ import (
 	"github.com/ebitengine/oto/v3"
 )
 
-// DefaultChunkFrames is the number of stereo frames rendered per chunk.
-const DefaultChunkFrames = 4096
+const (
+	DefaultChunkFrames = 4096    // number of stereo frames rendered per chunk
+	orderStride        = 1 << 16 // amount of row position each order gets inside the offset
+)
+
+// seekOffset packs an order and row into the offset ModuleReader.Seek takes.
+func seekOffset(order, row int) int64 {
+	return int64(order)*orderStride + int64(row)
+}
 
 // Player plays a Module through the default audio device using oto
 // (PulseAudio on Linux). Rendering is pull-driven: oto reads from the module
@@ -119,11 +126,19 @@ func (p *Player) Resume() error {
 func (p *Player) Rewind() error {
 	p.player.Pause()
 
-	if _, err := p.player.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("libopenmpt: rewind %w", err)
+	if err := p.Seek(0, 0); err != nil {
+		return err
 	}
 
 	p.endRun()
+	return nil
+}
+
+func (p *Player) Seek(order, row int) error {
+	if _, err := p.player.Seek(seekOffset(order, row), io.SeekStart); err != nil {
+		return fmt.Errorf("libopenmpt: seek to %d:%d: %w", order, row, err)
+	}
+
 	return nil
 }
 
@@ -278,15 +293,20 @@ func (r *ModuleReader) Read(p []byte) (int, error) {
 // Seek returns a module to the very beginning. Since it's not a
 // []byte, the start is the only position it has.
 func (r *ModuleReader) Seek(offset int64, whence int) (int64, error) {
-	if offset != 0 || (whence != io.SeekStart && whence != io.SeekCurrent) {
+	if whence != io.SeekStart {
 		return 0, fmt.Errorf("libopenmpt: module position %d - only the start is seekable", offset)
+	}
+
+	if offset < 0 {
+		return 0, fmt.Errorf("libopenmpt: module position %d is negative", offset)
 	}
 
 	if r.Stopped.Load() {
 		return 0, fmt.Errorf("libopenmpt: module is stopped")
 	}
 
-	if err := r.Module.SeekOrderRow(0, 0); err != nil {
+	order, row := int(offset/orderStride), int(offset%orderStride)
+	if err := r.Module.SeekOrderRow(order, row); err != nil {
 		return 0, err
 	}
 

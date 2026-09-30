@@ -87,7 +87,7 @@ func (m *Model) LoadPattern(data libopenmpt.PatternData) {
 	tab := &m.Tabs[TabPattern]
 	tab.Formatted = m.formatPattern()
 	tab.Pattern.Rows = len(tab.Formatted)
-	tab.Pattern.CentreOn(m.Position.Row, m.Info.Channels)
+	tab.Pattern.Clamp(m.Info.Channels)
 }
 
 func (m Model) formatPattern() [][]CellFields {

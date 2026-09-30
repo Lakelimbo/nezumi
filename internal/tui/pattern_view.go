@@ -191,6 +191,10 @@ func (m *Model) FollowPatternRow(row int) {
 	tab.Pattern.CentreOn(row, m.Info.Channels)
 }
 
+func (m Model) CursorIsTransport() bool {
+	return !m.Playing
+}
+
 func (m Model) PatternGrid() string {
 	v := m.Tabs[TabPattern].Pattern
 

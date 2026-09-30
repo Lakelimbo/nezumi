@@ -22,7 +22,7 @@ func loadPattern(mod *libopenmpt.Module, index int) tea.Cmd {
 	return func() tea.Msg {
 		data, err := mod.ReadPattern(index)
 
-		return patternMsg{
+		return PatternMsg{
 			Index: index,
 			Data:  data,
 			Err:   err,

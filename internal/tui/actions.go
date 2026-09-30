@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -41,6 +43,16 @@ func executeCommand(m Model, raw string) (tea.Model, tea.Cmd) {
 	case "pause":
 		m.pause()
 		return m, nil
+
+	case "seek":
+		order, row, ok := ParseSeek(fields[1:])
+		if !ok {
+			m.Status = "usage: :seek <order> [row]"
+			return m, nil
+		}
+
+		cmd := m.SeekTo(order, row)
+		return m, cmd
 
 	case "stop":
 		m.stop()
@@ -96,6 +108,25 @@ func parseVisualization(args []string) (visualizationID, bool) {
 	return 0, false
 }
 
+func ParseSeek(args []string) (order, row int, ok bool) {
+	if len(args) < 1 || len(args) > 2 {
+		return 0, 0, false
+	}
+
+	var err error
+	if order, err = strconv.Atoi(args[0]); err != nil {
+		return 0, 0, false
+	}
+
+	if len(args) == 2 {
+		if row, err = strconv.Atoi(args[1]); err != nil {
+			return 0, 0, false
+		}
+	}
+
+	return order, row, true
+}
+
 func nextTab(m *Model) tea.Cmd {
 	m.setTab(tabID((int(m.ActiveTab) + 1) % int(TabCount)))
 	return nil
@@ -107,15 +138,75 @@ func prevTab(m *Model) tea.Cmd {
 }
 
 func toggleFollow(m *Model) tea.Cmd {
-	m.Tabs[TabPattern].Follow = !m.Tabs[TabPattern].Follow
+	tab := &m.Tabs[TabPattern]
+	tab.Follow = !tab.Follow
 
-	if m.Tabs[TabPattern].Follow {
-		m.FollowPatternRow(m.Position.Row)
-	} else {
-		m.refreshViewport(TabPattern)
+	if !tab.Follow {
+		return nil
 	}
 
-	return nil
+	m.FollowPatternRow(m.Position.Row)
+
+	if m.Position.Order < 0 || m.Position.Order == m.LoadedOrder {
+		return nil
+	}
+
+	m.LoadedOrder = m.Position.Order
+	return loadPattern(m.Module, m.Position.Pattern)
+}
+
+// SeekTo moves the module to an order and row, and points the tab
+// at whatever pattern that order holds
+func (m *Model) SeekTo(order, row int) tea.Cmd {
+	switch {
+	case order < 0 || order >= m.Module.NumOrders():
+		m.Status = fmt.Sprintf("order %d is outside the module", order)
+		return nil
+
+	case !m.Module.IsOrderPlayable(order):
+		m.Status = fmt.Sprintf("order %d is a skip or stop marker", order)
+		return nil
+	}
+
+	if err := m.Player.Seek(order, row); err != nil {
+		m.Status = err.Error()
+		return nil
+	}
+
+	m.Position = m.Module.Position()
+
+	tab := &m.Tabs[TabPattern]
+	if order == m.LoadedOrder {
+		tab.Pattern.Clamp(m.Info.Channels)
+		return nil
+	}
+
+	m.LoadedOrder = order
+	tab.Pattern.Row = row
+	tab.Pattern.Clamp(m.Info.Channels)
+
+	return loadPattern(m.Module, m.Position.Pattern)
+}
+
+// AdjacentOrder returns the orders around a given one, wrapping
+// around the sequence and stepping over skip and stop entries
+func (m *Model) AdjacentOrder(order, step int) int {
+	total := m.Module.NumOrders()
+	if total <= 0 {
+		return -1
+	}
+
+	// nothing loaded yet, so start walking from the beginning
+	order = max(order, 0)
+
+	for range total {
+		order = (order + step + total) % total
+		if m.Module.IsOrderPlayable(order) {
+			return order
+		}
+	}
+
+	return -1
 }
 
 func togglePlayback(m *Model) tea.Cmd {
@@ -134,15 +225,20 @@ func stopPlayback(m *Model) tea.Cmd {
 }
 
 func (m *Model) play() tea.Cmd {
+	var load tea.Cmd
+	if !m.Tabs[TabPattern].Follow && !m.Playing {
+		load = m.SeekTo(m.LoadedOrder, m.Tabs[TabPattern].Pattern.Row)
+	}
+
 	if err := m.Player.Resume(); err != nil {
 		m.Status = err.Error()
-		return nil
+		return load
 	}
 
 	m.Playing = true
 	m.refreshViewport(TabInfo)
 
-	return rearmPlayback(m.Audio, m.Player)
+	return tea.Batch(load, rearmPlayback(m.Audio, m.Player))
 }
 
 func (m *Model) pause() {

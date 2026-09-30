@@ -20,12 +20,12 @@ func NewTestModel(width, height int) tui.Model {
 	command.Placeholder = "command"
 
 	m := tui.Model{
-		ActiveTab:     tui.TabPattern,
-		LoadedPattern: -1,
-		Playing:       true,
-		Command:       command,
-		Tabs:          tui.NewTabs(),
-		Theme:         tui.DefaultTheme(),
+		ActiveTab:   tui.TabPattern,
+		LoadedOrder: -1,
+		Playing:     true,
+		Command:     command,
+		Tabs:        tui.NewTabs(),
+		Theme:       tui.DefaultTheme(),
 		Info: tui.ModuleInfo{
 			Title:    "test module",
 			Artist:   "nobody",
@@ -73,7 +73,7 @@ func LoadTestPattern(m *tui.Model, rows int) {
 		}
 	}
 
-	m.LoadedPattern = 0
+	m.LoadedOrder = 0
 	m.LoadPattern(pattern)
 
 	// the view now knows how many rows there are, so the window has to be

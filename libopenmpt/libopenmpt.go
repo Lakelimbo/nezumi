@@ -100,6 +100,21 @@ static int32_t modterm_numpatterns_impl(modterm_module *wrapper) {
   return openmpt_module_get_num_patterns(wrapper->module);
 }
 
+static int32_t modterm_numorders_impl(modterm_module *wrapper) {
+	return openmpt_module_get_num_orders(wrapper->module);
+}
+
+static int32_t modterm_orderpattern_impl(modterm_module *wrapper,
+																				 int32_t order) {
+	return openmpt_module_get_order_pattern(wrapper->module, order);
+}
+
+static int modterm_orderplayable_impl(modterm_module *wrapper,
+																		 int32_t order) {
+	return openmpt_module_is_order_skip_entry(wrapper->module, order) == 0 &&
+				 openmpt_module_is_order_stop_entry(wrapper->module, order) == 0;
+}
+
 static int32_t modterm_patternrows_impl(modterm_module *wrapper,
                                         int32_t pattern) {
   return openmpt_module_get_pattern_num_rows(wrapper->module, pattern);
@@ -293,6 +308,38 @@ func (m *Module) NumPatterns() int {
 	return int(C.modterm_numpatterns_impl(m.ptr))
 }
 
+// NumOrders returns the length of the module's sequence (not to be
+// confused with the patterns themselves).
+func (m *Module) NumOrders() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return int(C.modterm_numorders_impl(m.ptr))
+}
+
+// OrderPattern returns the pattern index played at the given order
+// position (or -1 when the position is out of range).
+func (m *Module) OrderPattern(order int) int {
+	if order < 0 || order >= m.NumOrders() {
+		return -1
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if C.modterm_orderplayable_impl(m.ptr, C.int32_t(order)) == 0 {
+		return -1
+	}
+
+	return int(C.modterm_orderpattern_impl(m.ptr, C.int32_t(order)))
+}
+
+// IsOrderPlayable returns whether the given order position is an
+// actual pattern (truthy) or a skip (+++)/stop(---) (falsy).
+func (m *Module) IsOrderPlayable(order int) bool {
+	return m.OrderPattern(order) >= 0
+}
+
 // Pattern returns a view over a single pattern of the module.
 func (m *Module) Pattern(index int) (*Pattern, error) {
 	if index < 0 || index >= m.NumPatterns() {
@@ -436,6 +483,26 @@ func (m *Module) CurrentRow() int {
 // SeekOrderRow jumps to the given order/row. It fails when the module cannot
 // seek to that position.
 func (m *Module) SeekOrderRow(order, row int) error {
+	orders := m.NumOrders()
+	if order < 0 || order >= orders {
+		return fmt.Errorf("order %d is outside the module's %d orders", order, orders)
+	}
+
+	pattern := m.OrderPattern(order)
+	if pattern < 0 {
+		return fmt.Errorf("order %d holds no pattern", order)
+	}
+
+	rows := m.patternRows(pattern)
+	switch {
+	case row < 0:
+		return fmt.Errorf("row %d is negative", row)
+
+	case rows > 0 && row >= rows:
+		return fmt.Errorf("row %d is past the end of pattern %d, which has %d rows",
+			row, pattern, rows)
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

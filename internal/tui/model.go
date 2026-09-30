@@ -72,12 +72,12 @@ type Model struct {
 	Width  int
 	Height int
 
-	Position      libopenmpt.Position
-	LoadedPattern int
-	Pattern       libopenmpt.PatternData
-	Info          ModuleInfo
-	Playing       bool
-	Status        string
+	Position    libopenmpt.Position
+	LoadedOrder int
+	Pattern     libopenmpt.PatternData
+	Info        ModuleInfo
+	Playing     bool
+	Status      string
 
 	CommandActive bool
 	Command       textinput.Model
@@ -94,7 +94,7 @@ type positionMsg struct {
 	Position libopenmpt.Position
 }
 
-type patternMsg struct {
+type PatternMsg struct {
 	Index int
 	Data  libopenmpt.PatternData
 	Err   error
@@ -126,13 +126,13 @@ func New(mod *libopenmpt.Module, player *libopenmpt.Player, audio <-chan libopen
 	command.Placeholder = "command"
 
 	return Model{
-		Module:        mod,
-		Player:        player,
-		Audio:         audio,
-		ActiveTab:     TabPattern,
-		LoadedPattern: -1,
-		Playing:       true,
-		Command:       command,
+		Module:      mod,
+		Player:      player,
+		Audio:       audio,
+		ActiveTab:   TabPattern,
+		LoadedOrder: -1,
+		Playing:     true,
+		Command:     command,
 		Info: ModuleInfo{
 			Title:    mod.Title(),
 			Artist:   mod.Artist(),
@@ -170,26 +170,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Position = msg.Position
 		m.refreshViewport(TabInfo)
 
-		if m.ActiveTab == TabPattern {
-			m.FollowPatternRow(m.Position.Row)
-		}
+		return m, m.FollowPosition()
 
-		if m.Position.Pattern >= 0 && m.Position.Pattern != m.LoadedPattern {
-			m.LoadedPattern = m.Position.Pattern
-
-			return m, loadPattern(m.Module, m.Position.Pattern)
-		}
-
-		return m, pollPosition(m.Module)
-
-	case patternMsg:
+	case PatternMsg:
 		switch {
 		case msg.Err != nil:
 			m.Status = msg.Err.Error()
-			m.LoadedPattern = -1
+			m.LoadedOrder = -1
 
-		case msg.Index == m.Position.Pattern:
+		case msg.Index == m.Module.OrderPattern(m.LoadedOrder):
 			m.LoadPattern(msg.Data)
+			m.FollowPatternRow(m.Position.Row)
 		}
 
 		return m, pollPosition(m.Module)
@@ -234,6 +225,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// FollowPosition take the position's poll. When following, the band owns
+// the cursor, the window, and the pattern, following into the next order.
+func (m *Model) FollowPosition() tea.Cmd {
+	if m.Tabs[TabPattern].Follow {
+		m.FollowPatternRow(m.Position.Row)
+
+		if order := m.Position.Order; order >= 0 && order != m.LoadedOrder {
+			m.LoadedOrder = order
+
+			return loadPattern(m.Module, m.Position.Pattern)
+		}
+	}
+
+	return pollPosition(m.Module)
 }
 
 func (m *Model) bodySize() (width, height int) {

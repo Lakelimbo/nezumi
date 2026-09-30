@@ -166,6 +166,7 @@ func (m Model) handlePatternKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	tab := &m.Tabs[TabPattern]
 	view, ch := &tab.Pattern, m.Info.Channels
 	page := view.ViewRows()
+	row, order := view.Row, m.LoadedOrder
 
 	switch msg.String() {
 	case "up", "k":
@@ -180,6 +181,7 @@ func (m Model) handlePatternKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		view.GotoTop(ch)
 	case "G", "end":
 		view.GotoBottom(ch)
+
 	case "right", "l":
 		view.ScrollCols(1, ch)
 	case "left", "h":
@@ -189,13 +191,26 @@ func (m Model) handlePatternKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "H", "shift+left":
 		view.ScrollCols(-ChannelColumnWidth, ch)
 
+	case "alt+right":
+		order = m.AdjacentOrder(order, 1)
+	case "alt+left":
+		order = m.AdjacentOrder(order, -1)
+
 	case "F":
 		m.Status = ""
-		tab.Follow = !tab.Follow
-		m.FollowPatternRow(m.Position.Row)
+		return m, toggleFollow(&m)
 	}
 
-	return m, nil
+	if !m.CursorIsTransport() {
+		return m, nil
+	}
+
+	// a key that could never move anywhere has nothing to seek
+	if view.Row == row && order == m.LoadedOrder {
+		return m, nil
+	}
+
+	return m, m.SeekTo(order, view.Row)
 }
 
 func (m Model) forwardToViewport(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

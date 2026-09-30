@@ -3,43 +3,35 @@ package libopenmpt_test
 import (
 	"testing"
 
+	"github.com/Lakelimbo/nezumi/internal/utils"
 	"github.com/Lakelimbo/nezumi/libopenmpt"
-)
-
-type DemoSong string
-
-const (
-	Demo3DGalax       DemoSong = "../demo/dubmood-3d_galax.xm"
-	DemoDreamstone    DemoSong = "../demo/nightbeat-dreamstone.it"
-	DemoRealization   DemoSong = "../demo/necros-realization.s3m"
-	DemoWorldOfDentro DemoSong = "../demo/4mat-world_of_dentro.mod"
 )
 
 func TestPattern(t *testing.T) {
 	t.Parallel()
 
 	scenarios := []struct {
-		module      DemoSong
+		module      utils.DemoSong
 		numPatterns int
 		numChannels int
 	}{
 		{
-			module:      Demo3DGalax,
+			module:      utils.Demo3DGalax,
 			numPatterns: 44,
 			numChannels: 16,
 		},
 		{
-			module:      DemoDreamstone,
+			module:      utils.DemoDreamstone,
 			numPatterns: 38,
 			numChannels: 18,
 		},
 		{
-			module:      DemoRealization,
+			module:      utils.DemoRealization,
 			numPatterns: 25,
 			numChannels: 9,
 		},
 		{
-			module:      DemoWorldOfDentro,
+			module:      utils.DemoWorldOfDentro,
 			numPatterns: 8,
 			numChannels: 4,
 		},
